@@ -17,3 +17,7 @@ test/*.beam
 test/*.html
 test/ct_run*
 test/variables-ct*
+*.so
+*.o
+.*
+tags

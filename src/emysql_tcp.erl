@@ -27,6 +27,7 @@
 
 -module(emysql_tcp).
 -export([send_and_recv_packet/3, recv_packet/1, response/2]).
+-export([decode_row_data/3]).
 
 -include("emysql.hrl").
 
@@ -265,7 +266,7 @@ recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
 			{SeqNum1, ?ETS_SELECT(Tid), ?SERVER_NO_STATUS};
 		#packet{seq_num = SeqNum1, data = RowData} ->
 			%-% io:format("Seq: ~p raw: ~p~n", [SeqNum1, RowData]),
-			Row = decode_row_data(RowData, FieldList, []),
+			Row = emysql_nif:decode_row_data(RowData, FieldList, []),
 			ets:insert(Tid, {Key, Row}),
 			recv_row_data(Sock, FieldList, SeqNum1, Tid, Key+1)
 	end.

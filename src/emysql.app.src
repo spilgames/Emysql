@@ -10,7 +10,7 @@
 {application, emysql, [
     {description, "Emysql - Erlang MySQL driver"},
     {vsn, "0.2"},
-    {modules, []}, 
+    {modules, [emysql_tcp]}, 
     {mod, {emysql_app, ["%MAKETIME%"]}},
     {registered, []},
     {applications, [kernel, stdlib, crypto]},

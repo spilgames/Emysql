@@ -9,6 +9,7 @@ MAKETIME=$(shell date)
 
 all: app
 	(cd src;$(MAKE))
+	rebar compile
 
 app: ebin/$(PKGNAME).app
 
