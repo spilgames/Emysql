@@ -9,7 +9,7 @@
 
 {application, emysql, [
     {description, "Emysql - Erlang MySQL driver"},
-    {vsn, "0.2"},
+    {vsn, git},
     {modules, []}, 
     {mod, {emysql_app, ["%MAKETIME%"]}},
     {registered, []},
