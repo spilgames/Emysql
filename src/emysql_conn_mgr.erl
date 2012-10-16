@@ -336,7 +336,9 @@ initialize_pools() ->
 			port = proplists:get_value(port, Props),
 			options = [
 				{database, proplists:get_value(database, Props)},
-				{time_zone, proplists:get_value(time_zone, Props)}
+				{time_zone, proplists:get_value(time_zone, Props)},
+				{encoding,
+					proplists:get_value(encoding, Props, ?DEFAULT_ENCODING)}
 			]
 		} || {PoolId, Props} <- emysql_app:pools()
 	].
