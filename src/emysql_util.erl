@@ -275,7 +275,7 @@ quote(String, _) when is_list(String) ->
 	quote(String);
 	
 quote(Any, Pool) when is_record(Any,pool) ->
-	quote(Any, Pool#pool.encoding);
+	quote(Any, proplists:get_value(encoding, Pool#pool.options));
 	
 quote(Bin, latin1) when is_binary(Bin) ->
 	list_to_binary(quote(binary_to_list(Bin)));
