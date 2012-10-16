@@ -41,7 +41,8 @@
         add_pool_default/1,
         add_pool_database/1,
         add_pool_utf8/1,
-        add_pool_latin1/1
+        add_pool_latin1/1,
+        add_pool_time_zone/1
     ]).
 
 % List of test cases.
@@ -59,7 +60,8 @@ all() ->
         add_pool_default,
         add_pool_database,
         add_pool_utf8,
-        add_pool_latin1
+        add_pool_latin1,
+        add_pool_time_zone
     ].
 
 init_per_testcase(T, Config) when
@@ -80,7 +82,8 @@ end_per_testcase(T, _) when
         T == add_pool_default orelse
         T == add_pool_database orelse
         T == add_pool_utf8 orelse
-        T == add_pool_latin1 ->
+        T == add_pool_latin1 orelse
+        T == add_pool_time_zone ->
 	emysql:remove_pool(?POOL);
 
 end_per_testcase(_, _) ->
@@ -152,3 +155,8 @@ add_pool_latin1(_) ->
     #result_packet{rows=[[<<"latin1">>]]} =
     emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
+add_pool_time_zone(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, [{time_zone, "+00:00"}]),
+    #result_packet{rows=[[<<"+00:00">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@time_zone;">>).
