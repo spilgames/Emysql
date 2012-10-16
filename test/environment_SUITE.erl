@@ -18,32 +18,73 @@
 %%%
 %%%-------------------------------------------------------------------
 
+-define(POOL, environment_test_pool).
+
 -module(environment_SUITE).
--compile(export_all).
 -include_lib("common_test/include/ct.hrl").
+
+-include("include/emysql.hrl").
+
+-export([
+        all/0,
+        init_per_testcase/2,
+        end_per_testcase/2,
+
+        initializing_crypto_app/1,
+        initializing_emysql_app/1,
+        accessing_emysql_module/1,
+
+        connecting_to_db_and_creating_a_pool_transition/1,
+        insert_a_record/1,
+        select_a_record/1,
+
+        add_pool_default/1,
+        add_pool_database/1,
+        add_pool_utf8/1,
+        add_pool_latin1/1
+    ]).
 
 % List of test cases.
 % Test cases have self explanatory names.
 %%--------------------------------------------------------------------
 all() -> 
-    [initializing_crypto_app, 
-     initializing_emysql_app,
-	accessing_emysql_module,
-	connecting_to_db_and_creating_a_pool,
-     insert_a_record,
-     select_a_record
-     ].
+    [
+        initializing_crypto_app,
+        initializing_emysql_app,
+        accessing_emysql_module,
+        connecting_to_db_and_creating_a_pool_transition,
+        insert_a_record,
+        select_a_record,
 
-% nothing, but forces call of clean up
-%%--------------------------------------------------------------------
-init_per_suite(Config) ->
+        add_pool_default,
+        add_pool_database,
+        add_pool_utf8,
+        add_pool_latin1
+    ].
+
+init_per_testcase(T, Config) when
+        T == connecting_to_db_and_creating_a_pool_transition orelse
+        T == insert_a_record orelse
+        T == select_a_record ->
+    emysql:add_pool(?POOL, 10, "hello_username",
+        "hello_password", "localhost", 3306, "hello_database", utf8),
+    Config;
+
+init_per_testcase(_, Config) ->
     Config.
 
-% clean up
-%%--------------------------------------------------------------------
-end_per_suite(_) ->
-	emysql:remove_pool(environment_test_pool),
-	ok.
+end_per_testcase(T, _) when
+        T == connecting_to_db_and_creating_a_pool_transition orelse
+        T == insert_a_record orelse
+        T == select_a_record orelse
+        T == add_pool_default orelse
+        T == add_pool_database orelse
+        T == add_pool_utf8 orelse
+        T == add_pool_latin1 ->
+	emysql:remove_pool(?POOL);
+
+end_per_testcase(_, _) ->
+    ok.
 
 % Test Case: Test if the crypt app is available. This detects a path error.
 %%--------------------------------------------------------------------
@@ -62,26 +103,52 @@ initializing_emysql_app(_) ->
 accessing_emysql_module(_) ->
     emysql:modules(),
     ok.
-
-% Test Case: Test if we can connect to the test db and create a connection pool.
+%% Test case: test obsolete transitional API
 %%--------------------------------------------------------------------
-connecting_to_db_and_creating_a_pool(_) ->
-    emysql:add_pool(environment_test_pool, 1,
-        "hello_username", "hello_password", "localhost", 3306,
-        "hello_database", utf8),
-    ok.
+connecting_to_db_and_creating_a_pool_transition(_) ->
+    #result_packet{rows=[[<<"hello_database">>]]} =
+    emysql:execute(?POOL, <<"SELECT DATABASE();">>),
+    #result_packet{rows=[[<<"utf8">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
 % Test Case: Test if we can insert a record.
 %%--------------------------------------------------------------------
 insert_a_record(_) ->
-    emysql:execute(environment_test_pool,
-        <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
-	ok.
+    #ok_packet{} = emysql:execute(?POOL, <<"DELETE FROM hello_table">>),
+    #ok_packet{} = emysql:execute(?POOL,
+        <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>).
 
 % Test Case: Test if we can select records.
 %%--------------------------------------------------------------------
 select_a_record(_) ->
-    Result = emysql:execute(environment_test_pool,
-        <<"select hello_text from hello_table">>),
-    io:format("~n~p~n", [Result]),
-    ok.
+    #result_packet{rows=[[<<"Hello World!">>]]} =
+    emysql:execute(?POOL, <<"select hello_text from hello_table">>).
+
+% Test Case: Test if we can connect to the test db and create a connection pool.
+%%--------------------------------------------------------------------
+add_pool_default(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306),
+    #result_packet{rows=[[undefined]]} =
+    emysql:execute(?POOL, <<"SELECT DATABASE();">>),
+    #result_packet{rows=[[<<"utf8">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
+
+add_pool_database(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, [{database, "hello_database"}]),
+    #result_packet{rows=[[<<"hello_database">>]]} =
+    emysql:execute(?POOL, <<"SELECT DATABASE();">>).
+
+add_pool_utf8(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, [{encoding, utf8}]),
+    #result_packet{rows=[[<<"utf8">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
+
+add_pool_latin1(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, [{encoding, latin1}]),
+    #result_packet{rows=[[<<"latin1">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
+
