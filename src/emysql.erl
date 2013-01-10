@@ -96,7 +96,6 @@
 -module(emysql).
 
 -export([	start/0, stop/0,
-			add_pool/6,
 			add_pool/7,
 			add_pool/8,
 			remove_pool/1, increment_pool_size/2, decrement_pool_size/2,
@@ -189,15 +188,16 @@ modules() ->
 default_timeout() ->
 	emysql_app:default_timeout().
 
-%% @spec add_pool(PoolId, Size, User, Password, Host, Port, Options) -> Result
+%% @spec add_pool(PoolId, Size, User, Password, Host, Port, Database, Options) -> Result
 %%		PoolId = atom()
 %%		Size = integer()
 %%		User = string()
 %%		Password = string()
 %%		Host = string()
 %%		Port = integer()
+%%		Database = undefined | string()
 %%		Options = [Option]
-%%		Option = {database, string()} | {encoding, string()} | {time_zone, string()}
+%%		Option = {encoding, string()} | {time_zone, string()}
 %%		Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state() }
 %%
 %% @doc Synchronous call to the connection manager to add a pool.
@@ -210,7 +210,12 @@ default_timeout() ->
 %% emysql_conn_mgr:add_pool() to make the pool known to the pool management.
 %% emysql_conn_mgr:add_pool() is translated into a blocking gen-server call.
 %% @end doc: hd feb 11
-add_pool(PoolId, Size, User, Password, Host, Port, Options) ->
+add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) when
+        is_atom(Encoding) ->
+    Opts = [{encoding, Encoding}],
+    add_pool(PoolId, Size, User, Password, Host, Port, Database, Opts);
+
+add_pool(PoolId, Size, User, Password, Host, Port, Database, Options) ->
 	Options2 = case proplists:get_value(encoding, Options) of
 		undefined -> [{encoding, ?DEFAULT_ENCODING}|Options];
 		_ -> Options
@@ -222,19 +227,15 @@ add_pool(PoolId, Size, User, Password, Host, Port, Options) ->
 		password = Password,
 		host = Host,
 		port = Port,
+        database = Database,
 		options = Options2
 	},
 	Pool1 = emysql_conn:open_connections(Pool),
 	emysql_conn_mgr:add_pool(Pool1).
 
 %% @doc Add pool with default options
-add_pool(PoolId, Size, User, Password, Host, Port) ->
-    add_pool(PoolId, Size, User, Password, Host, Port, []).
-
-%% @doc Transitional function for backwards compatibility
-add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
-    Options = [{database, Database}, {encoding, Encoding}],
-    add_pool(PoolId, Size, User, Password, Host, Port, Options).
+add_pool(PoolId, Size, User, Password, Host, Port, Database) ->
+    add_pool(PoolId, Size, User, Password, Host, Port, Database, []).
 
 %% @spec remove_pool(PoolId) -> ok
 %%		PoolId = atom()

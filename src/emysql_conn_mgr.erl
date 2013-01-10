@@ -334,8 +334,8 @@ initialize_pools() ->
 			password = proplists:get_value(password, Props),
 			host = proplists:get_value(host, Props),
 			port = proplists:get_value(port, Props),
+            database = proplists:get_value(database, Props),
 			options = [
-				{database, proplists:get_value(database, Props)},
 				{time_zone, proplists:get_value(time_zone, Props)},
 				{encoding,
 					proplists:get_value(encoding, Props, ?DEFAULT_ENCODING)}

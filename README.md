@@ -82,8 +82,8 @@ This is a hello world program. Follow the three steps below to try it out.
 		application:start(emysql),
 	
 		emysql:add_pool(hello_pool, 1,
-			"hello_username", "hello_password", "localhost", 3306,
-			[{database, "hello_database"}, {encoding, utf8}]),
+			"hello_username", "hello_password", "localhost", 3306, "hello_database",
+			[{encoding, utf8}]),
 	
 		emysql:execute(hello_pool,
 			<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
@@ -130,8 +130,8 @@ For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 
 Emysql uses a sophisticated connection pooling mechanism.
 
-	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306,
-      [{database, "mydatabase"}, {encoding, utf8}]).
+	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306, "mydatabase",
+      [{encoding, utf8}]).
 
 ### Running Hello World
 
@@ -212,19 +212,20 @@ The Emysql driver is an Erlang gen-server, and, application.
 
 #### Adding a Pool                                  <a name="Adding_a_Pool"></a>
 
-    %% emysql:add_pool(PoolId, Size, User, Password, Host, Port, Options) -> Result
+    %% emysql:add_pool(PoolId, Size, User, Password, Host, Port, Database, Options) -> Result
     %%		PoolId = atom()
     %%		Size = integer()
     %%		User = string()
     %%		Password = string()
     %%		Host = string()
     %%		Port = integer()
+    %%    Database = undefined | string()
     %%		Options = [Option]
-    %%		Option = {database, string()} | {encoding, string()} | {time_zone, string()}
+    %%		Option = {encoding, string()} | {time_zone, string()}
     %%		Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state()}
 
     emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306,
-        [{database, "mydatabase"}, {encoding, utf8}]).
+               "mydatabase", [{encoding, utf8}]).
 
 `Options` proplist is optional. However, if encoding is not specified, default is `utf8`
 
@@ -232,6 +233,7 @@ Older version of `emysql:add_pool/8` is kept for backwards compatibility:
 
     emysql:add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding)
 
+      %% Encoding = atom()
 
 #### More Record Types
 

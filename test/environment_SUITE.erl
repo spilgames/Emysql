@@ -38,10 +38,13 @@
         insert_a_record/1,
         select_a_record/1,
 
-        add_pool_default/1,
+        add_pool_undefined/1,
+        add_pool_empty_bin/1,
+        add_pool_empty_list/1,
         add_pool_database/1,
         add_pool_utf8/1,
         add_pool_latin1/1,
+        add_pool_latin1_compatible/1,
         add_pool_time_zone/1
     ]).
 
@@ -57,10 +60,13 @@ all() ->
         insert_a_record,
         select_a_record,
 
-        add_pool_default,
+        add_pool_undefined,
+        add_pool_empty_bin,
+        add_pool_empty_list,
         add_pool_database,
         add_pool_utf8,
         add_pool_latin1,
+        add_pool_latin1_compatible,
         add_pool_time_zone
     ].
 
@@ -79,10 +85,13 @@ end_per_testcase(T, _) when
         T == connecting_to_db_and_creating_a_pool_transition orelse
         T == insert_a_record orelse
         T == select_a_record orelse
-        T == add_pool_default orelse
+        T == add_pool_undefined orelse
+        T == add_pool_empty_bin orelse
+        T == add_pool_empty_list orelse
         T == add_pool_database orelse
         T == add_pool_utf8 orelse
         T == add_pool_latin1 orelse
+        T == add_pool_latin1_compatible orelse
         T == add_pool_time_zone ->
 	emysql:remove_pool(?POOL);
 
@@ -129,34 +138,52 @@ select_a_record(_) ->
 
 % Test Case: Test if we can connect to the test db and create a connection pool.
 %%--------------------------------------------------------------------
-add_pool_default(_) ->
+add_pool_undefined(_) ->
     emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
-        3306),
+        3306, undefined),
     #result_packet{rows=[[undefined]]} =
     emysql:execute(?POOL, <<"SELECT DATABASE();">>),
     #result_packet{rows=[[<<"utf8">>]]} =
     emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
+add_pool_empty_bin(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, <<"">>),
+    #result_packet{rows=[[undefined]]} =
+    emysql:execute(?POOL, <<"SELECT DATABASE();">>).
+
+add_pool_empty_list(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, ""),
+    #result_packet{rows=[[undefined]]} =
+    emysql:execute(?POOL, <<"SELECT DATABASE();">>).
+
 add_pool_database(_) ->
     emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
-        3306, [{database, "hello_database"}]),
+        3306, "hello_database"),
     #result_packet{rows=[[<<"hello_database">>]]} =
     emysql:execute(?POOL, <<"SELECT DATABASE();">>).
 
 add_pool_utf8(_) ->
     emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
-        3306, [{encoding, utf8}]),
+        3306, undefined, [{encoding, utf8}]),
     #result_packet{rows=[[<<"utf8">>]]} =
     emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
 add_pool_latin1(_) ->
     emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
-        3306, [{encoding, latin1}]),
+        3306, undefined, [{encoding, latin1}]),
+    #result_packet{rows=[[<<"latin1">>]]} =
+    emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
+
+add_pool_latin1_compatible(_) ->
+    emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
+        3306, undefined, latin1),
     #result_packet{rows=[[<<"latin1">>]]} =
     emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
 add_pool_time_zone(_) ->
     emysql:add_pool(?POOL, 10, "hello_username", "hello_password", "localhost",
-        3306, [{time_zone, "+00:00"}]),
+        3306, undefined, [{time_zone, "+00:00"}]),
     #result_packet{rows=[[<<"+00:00">>]]} =
     emysql:execute(?POOL, <<"SELECT @@time_zone;">>).
