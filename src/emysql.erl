@@ -197,7 +197,7 @@ default_timeout() ->
 %%		Port = integer()
 %%		Database = undefined | string()
 %%		Options = [Option]
-%%		Option = {encoding, string()} | {time_zone, string()}
+%%		Option = {encoding, string()} | {time_zone, string()} | {sql_mode, string()}
 %%		Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state() }
 %%
 %% @doc Synchronous call to the connection manager to add a pool.

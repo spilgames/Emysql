@@ -46,6 +46,11 @@ set_encoding(Connection, Encoding) ->
 	Packet = <<?COM_QUERY, "set names '", (erlang:atom_to_binary(Encoding, utf8))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
+set_sql_mode(_, undefined) -> ok;
+set_sql_mode(Connection, SqlMode) ->
+	Packet = <<?COM_QUERY, "set sql_mode='", (iolist_to_binary(SqlMode))/binary, "'">>,
+	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
+
 set_time_zone(_, undefined) -> ok;
 set_time_zone(Connection, Timezone) ->
 	Packet = <<?COM_QUERY, "set time_zone='", (iolist_to_binary(Timezone))/binary, "'">>,
@@ -208,6 +213,13 @@ set_options(Connection, Options) ->
             ok;
         Err3 when is_record(Err3, error_packet) ->
             exit({failed_to_set_time_zone, Err3#error_packet.msg})
+	end,
+
+    case set_sql_mode(Connection, proplists:get_value(sql_mode, Options)) of
+        OK4 when OK4 =:= ok orelse is_record(OK4, ok_packet) ->
+            ok;
+        Err4 when is_record(Err4, error_packet) ->
+            exit({failed_to_set_sql_mode, Err4#error_packet.msg})
 	end.
 
 

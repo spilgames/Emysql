@@ -221,7 +221,7 @@ The Emysql driver is an Erlang gen-server, and, application.
     %%		Port = integer()
     %%    Database = undefined | string()
     %%		Options = [Option]
-    %%		Option = {encoding, string()} | {time_zone, string()}
+    %%		Option = {encoding, string()} | {time_zone, string()} | {sql_mode, string()}
     %%		Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state()}
 
     emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306,
