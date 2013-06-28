@@ -99,12 +99,17 @@
             add_pool/8, remove_pool/1, increment_pool_size/2, decrement_pool_size/2,
             prepare/2,
             execute/2, execute/3, execute/4, execute/5,
+            execute_many/2, execute_many/3,
             default_timeout/0,
             modules/0
         ]).
 
 % for record and constant defines
 -include("emysql.hrl").
+
+-type poolname() :: atom().
+-type sql_statem() :: string() | binary().
+-type sql_query() :: string() | binary().
 
 %% @spec start() -> ok
 %% @doc Start the Emysql application.
@@ -527,6 +532,35 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is
             unavailable
     end.
 
+
+%% @doc Execute many queries in the same connection
+-spec execute_many(poolname(),
+    [{sql_statem() | sql_query(), list()} | sql_query() | sql_statem(), ...]) ->
+    [#ok_packet{} | #result_packet{} | #error_packet{}].
+execute_many(PoolId, QueryArgs) ->
+    execute_many(PoolId, QueryArgs, default_timeout()).
+
+%% @doc Execute many queries in the same connection with non-default timeout
+%%
+%% Timeout per query.
+execute_many(PoolId, QueryArgs, Timeout) when is_integer(Timeout) ->
+    Connection = emysql_conn_mgr:wait_for_connection(PoolId),
+    execute_many(PoolId, QueryArgs, Timeout, [], Connection).
+
+execute_many(_PoolId, [], _Timeout, Acc, _Connection) ->
+    lists:reverse(Acc);
+
+execute_many(PoolId, [{Query, Args}|Rest], Timeout, Acc, Connection) ->
+    case monitor_timeout(Connection, Timeout, [Connection, Query, Args]) of
+        OK when is_record(OK, ok_packet) orelse is_record(OK, result_packet) ->
+            execute_many(PoolId, Rest, Timeout, [OK|Acc], Connection);
+        #error_packet{} = Err ->
+            lists:reverse([Err|Acc])
+    end;
+
+execute_many(PoolId, [Query|Rest], Timeout, Acc, Connection) ->
+    execute_many(PoolId, [{Query, []}|Rest], Timeout, Acc, Connection).
+
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
@@ -599,6 +633,49 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
         %% if we timeout waiting for the process to return,
         %% then reset the connection and throw a timeout error
         %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
+        erlang:demonitor(Mref, [flush]),
+        exit(Pid, kill),
+        emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass),
+        exit(mysql_timeout)
+    end.
+
+%% @doc Execute a query and monitor for timeout or failure.
+%%
+%% In case a connection is closed, it is executed again in monitor_work/3.
+%% We do not want that in execute_many, because it would defeat the purpose to
+%% execute all queries in the same connection.
+%%
+%% Retrying the same number of queries can be dangerous (ex. UPDATE a=a+1).
+%%
+%% External behaviour is kept similar to monitor_work/3.
+monitor_timeout(#emysql_connection{}=Connection, Timeout, Args) ->
+    % spawn a new process to do work, then monitor that process until
+    % it either dies, returns data or times out.
+    Parent = self(),
+    {Pid, Mref} = spawn_monitor(
+                    fun() ->
+                            Res = apply(fun emysql_conn:execute/3, Args),
+                            Parent ! {self(), Res}
+                    end),
+    receive
+        {'DOWN', Mref, process, Pid, Reason} ->
+            %% if the process dies, reset the connection
+            %% and re-throw the error on the current pid.
+            %% catch if re-open fails and also signal it.
+            Pools = emysql_conn_mgr:pools(),
+            case emysql_conn:reset_connection(Pools, Connection, pass) of
+                {error,FailedReset} ->
+                    exit({Reason, {and_conn_reset_failed, FailedReset}});
+                _ -> exit({Reason, {}})
+            end;
+        {Pid, Result} ->
+            %% if the process returns data, unlock the
+            %% connection and collect the normal 'DOWN'
+            %% message send from the child process
+            erlang:demonitor(Mref, [flush]),
+            emysql_conn_mgr:pass_connection(Connection),
+            Result
+    after Timeout ->
         erlang:demonitor(Mref, [flush]),
         exit(Pid, kill),
         emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass),

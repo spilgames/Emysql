@@ -19,6 +19,8 @@
 -compile(export_all).
 -include_lib("common_test/include/ct.hrl").
 
+-include_lib("../include/emysql.hrl").
+
 -record(hello_record, {hello_text}).
 
 %% Optional suite settings
@@ -45,6 +47,10 @@ all() ->
      insert_only,
      insert_and_read_back,
      insert_and_read_back_as_recs,
+     same_query,
+     same_query_timeout,
+     same_query_prepared_statement,
+     same_query_error,
      select_by_prepared_statement,
 	 delete_non_existant_procedure,
 	 select_by_stored_procedure,
@@ -67,7 +73,9 @@ init_per_suite(Config) ->
     emysql:add_pool(test_pool, 1,
         "hello_username", "hello_password", "localhost", 3306,
         "hello_database", utf8),
-
+    emysql:add_pool(test_pool_many, 10,
+        "hello_username", "hello_password", "localhost", 3306,
+        "hello_database", utf8),
     Config.
 
 %% Optional suite post test wind down
@@ -78,6 +86,7 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
 	emysql:remove_pool(test_pool),
+	emysql:remove_pool(test_pool_many),
     ok.
 
 %% A test case. The ok is irrelevant. What matters is, if it returns.
@@ -144,6 +153,48 @@ insert_and_read_back(_) ->
                <<>>},
     
     ok.
+
+same_query(_) ->
+    #ok_packet{} = emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
+    [#ok_packet{}, #result_packet{rows=[[1]]}] = emysql:execute_many(
+        test_pool_many, [
+            <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>,
+            <<"SELECT ROW_COUNT()">>
+        ]).
+
+same_query_prepared_statement(_) ->
+    emysql:execute(test_pool_many, <<"DELETE FROM hello_table">>),
+
+	emysql:prepare(test_stmt,
+		<<"INSERT INTO hello_table SET hello_text=?">>),
+
+    [#ok_packet{}, #result_packet{rows=[[1]]}] = emysql:execute_many(
+        test_pool_many, [
+            {test_stmt, ["Hello, world!"]},
+            {<<"SELECT ROW_COUNT()">>, []}
+        ]
+    ).
+
+same_query_timeout(_) ->
+    {Pid, MRef} = spawn_monitor(fun() ->
+                Q = [<<"select sleep(1)">>],
+                emysql:execute_many(test_pool_many, Q, 10)
+        end
+    ),
+    receive
+        {'DOWN', MRef, process, Pid, mysql_timeout} ->
+            ok
+    after 100 ->
+            exit(message_timeout)
+    end.
+
+%% Make sure queries are not executed in case of failure
+same_query_error(_) ->
+    [#error_packet{}] = emysql:execute_many(
+        test_pool_many, [
+            <<"syntax error">>,
+            <<"select 1">>
+        ]).
 
 %% Test Case: Encode floating point data into a test table (Issue 57)
 encode_floating_point_data(_Config) ->

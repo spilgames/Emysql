@@ -113,6 +113,24 @@ For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 	
 	emysql:execute(my_pool, <<"call my_sp();">>).
 
+### Executing multiple queries in the same connection
+
+	emysql:execute_many(my_pool, [
+          <<"UPDATE mytable SET bar='baz'">>
+          <<"SELECT ROW_COUNT()">>
+      ]).
+
+This is needed when a query leaves some state behind, which can be retrieved
+only by a second query in the same connection.
+
+Prepared statements are also supported:
+
+	emysql:prepare(my_stmt, <<"UPDATE mytable SET bar='baz' WHERE id = ?">>).
+	emysql:execute_many(my_pool, [
+          {my_stmt, [1]}
+          <<"SELECT ROW_COUNT()">>
+      ]).
+
 ### Result Record
 
 	-record(result_packet, {seq_num, field_list, rows, extra}).
