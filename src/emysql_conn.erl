@@ -42,6 +42,8 @@ set_database(Connection, Database) ->
 	Packet = <<?COM_QUERY, "use ", (iolist_to_binary(Database))/binary>>,  % todo: utf8?
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
+set_encoding(_Connection, undefined) ->
+    ok;
 set_encoding(Connection, Encoding) ->
 	Packet = <<?COM_QUERY, "set names '", (erlang:atom_to_binary(Encoding, utf8))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
@@ -197,15 +199,14 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User,
 	end.
 
 %% @doc Set optional options for the connection (only the ones that can be in #pool.options)
-%%
-%% In theory encoding should be optional, but it must be defined for historical reasons.
 set_options(Connection, Options) ->
-	%-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
 	case set_encoding(Connection, proplists:get_value(encoding, Options)) of
-		OK2 when is_record(OK2, ok_packet) ->
-			ok;
-		Err2 when is_record(Err2, error_packet) ->
-			exit({failed_to_set_encoding, Err2#error_packet.msg})
+        ok ->
+            ok;
+        #ok_packet{} ->
+            ok;
+        #error_packet{msg=Msg} ->
+			exit({failed_to_set_encoding, Msg})
 	end,
 
     case set_time_zone(Connection, proplists:get_value(time_zone, Options)) of

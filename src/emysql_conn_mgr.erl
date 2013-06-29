@@ -338,7 +338,7 @@ initialize_pools() ->
 			options = [
 				{time_zone, proplists:get_value(time_zone, Props)},
 				{encoding,
-					proplists:get_value(encoding, Props, ?DEFAULT_ENCODING)}
+					proplists:get_value(encoding, Props)}
 			]
 		} || {PoolId, Props} <- emysql_app:pools()
 	].

@@ -143,7 +143,7 @@ add_pool_undefined(_) ->
         3306, undefined),
     #result_packet{rows=[[undefined]]} =
     emysql:execute(?POOL, <<"SELECT DATABASE();">>),
-    #result_packet{rows=[[<<"utf8">>]]} =
+    #result_packet{rows=[[<<"latin1">>]]} =
     emysql:execute(?POOL, <<"SELECT @@character_set_connection;">>).
 
 add_pool_empty_bin(_) ->

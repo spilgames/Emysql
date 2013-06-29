@@ -216,10 +216,6 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) when
     add_pool(PoolId, Size, User, Password, Host, Port, Database, Opts);
 
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Options) ->
-	Options2 = case proplists:get_value(encoding, Options) of
-		undefined -> [{encoding, ?DEFAULT_ENCODING}|Options];
-		_ -> Options
-	end,
 	Pool = #pool{
 		pool_id = PoolId,
 		size = Size,
@@ -228,7 +224,7 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Options) ->
 		host = Host,
 		port = Port,
         database = Database,
-		options = Options2
+		options = Options
 	},
 	Pool1 = emysql_conn:open_connections(Pool),
 	emysql_conn_mgr:add_pool(Pool1).
